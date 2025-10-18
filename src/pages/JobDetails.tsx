@@ -18,16 +18,22 @@ const JobDetails = () => {
   const [executions, setExecutions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const loadData = async () => {
+    if (!id) return;
+    const loadedJob = await getJobById(id);
+    const loadedExecutions = await getExecutionsByJobId(id);
+    setJob(loadedJob);
+    setExecutions(loadedExecutions);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    async function loadData() {
-      if (!id) return;
-      const loadedJob = await getJobById(id);
-      const loadedExecutions = await getExecutionsByJobId(id);
-      setJob(loadedJob);
-      setExecutions(loadedExecutions);
-      setLoading(false);
-    }
     loadData();
+    
+    // Realtime updates every 3 seconds
+    const interval = setInterval(loadData, 3000);
+    
+    return () => clearInterval(interval);
   }, [id]);
 
   if (loading) {
@@ -154,14 +160,40 @@ const JobDetails = () => {
                       <span className="text-sm text-muted-foreground">
                         {new Date(execution.startTime).toLocaleString()}
                       </span>
+                      {execution.endTime && (
+                        <span className="text-xs text-muted-foreground">
+                          → {new Date(execution.endTime).toLocaleString()}
+                        </span>
+                      )}
                     </div>
                     {execution.duration > 0 && (
                       <span className="text-sm text-muted-foreground">{execution.duration}s</span>
                     )}
                   </div>
+                  <div className="mb-2">
+                    <p className="text-xs text-muted-foreground mb-1">Endpoint:</p>
+                    <code className="block bg-muted p-2 rounded text-xs break-all">{job.url}</code>
+                  </div>
+                  {execution.responseStatus && (
+                    <div className="mb-2">
+                      <p className="text-xs text-muted-foreground">
+                        HTTP Status: <span className="font-semibold">{execution.responseStatus}</span>
+                      </p>
+                    </div>
+                  )}
                   <div className="bg-secondary p-3 rounded-md font-mono text-sm">
                     {execution.logs}
                   </div>
+                  {execution.responseBody && (
+                    <details className="mt-2">
+                      <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                        View Response Body
+                      </summary>
+                      <div className="mt-2 bg-muted p-3 rounded-md font-mono text-xs break-all max-h-48 overflow-auto">
+                        {execution.responseBody}
+                      </div>
+                    </details>
+                  )}
                   <Separator className="mt-4" />
                 </div>
               ))

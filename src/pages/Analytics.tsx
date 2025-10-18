@@ -1,5 +1,6 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { chartData } from "@/lib/mockData";
+import { getExecutionTrends, getExecutionDistribution, initDatabase } from "@/lib/database";
 import {
   BarChart,
   Bar,
@@ -17,6 +18,32 @@ import {
 } from "recharts";
 
 const Analytics = () => {
+  const [trends, setTrends] = useState<Array<{ date: string; successful: number; failed: number }>>([]);
+  const [distribution, setDistribution] = useState<Array<{ name: string; value: number; color: string }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadAnalyticsData = async () => {
+    await initDatabase();
+    const trendsData = await getExecutionTrends(7);
+    const distributionData = await getExecutionDistribution();
+    
+    setTrends(trendsData);
+    setDistribution(distributionData);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadAnalyticsData();
+    
+    // Realtime updates every 10 seconds
+    const interval = setInterval(loadAnalyticsData, 10000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) {
+    return <div className="p-8">Loading analytics...</div>;
+  }
   return (
     <div className="space-y-6">
       <div>
@@ -31,7 +58,7 @@ const Analytics = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData.executions}>
+              <LineChart data={trends}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" />
                 <YAxis stroke="hsl(var(--muted-foreground))" />
@@ -70,7 +97,7 @@ const Analytics = () => {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={chartData.distribution}
+                  data={distribution}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
@@ -79,7 +106,7 @@ const Analytics = () => {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {chartData.distribution.map((entry, index) => (
+                  {distribution.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
@@ -101,7 +128,7 @@ const Analytics = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData.executions}>
+              <BarChart data={trends}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" />
                 <YAxis stroke="hsl(var(--muted-foreground))" />

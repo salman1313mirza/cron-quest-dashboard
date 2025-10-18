@@ -218,3 +218,137 @@ export async function getExecutionsByJobId(jobId: string) {
     responseBody: row[8] as string,
   }));
 }
+
+export async function getAllExecutions() {
+  const database = await initDatabase();
+  const result = database.exec(
+    'SELECT * FROM executions ORDER BY startTime DESC LIMIT 1000'
+  );
+  
+  if (result.length === 0) return [];
+  
+  return result[0].values.map(row => ({
+    id: row[0] as string,
+    jobId: row[1] as string,
+    startTime: row[2] as string,
+    endTime: row[3] as string,
+    status: row[4] as string,
+    duration: row[5] as number,
+    logs: row[6] as string,
+    responseStatus: row[7] as number,
+    responseBody: row[8] as string,
+  }));
+}
+
+export async function getDashboardStats() {
+  const database = await initDatabase();
+  
+  // Get total jobs
+  const totalResult = database.exec('SELECT COUNT(*) as count FROM jobs');
+  const totalJobs = totalResult[0]?.values[0]?.[0] as number || 0;
+  
+  // Get active jobs (not paused)
+  const activeResult = database.exec('SELECT COUNT(*) as count FROM jobs WHERE status != "paused"');
+  const activeJobs = activeResult[0]?.values[0]?.[0] as number || 0;
+  
+  // Get today's executions
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayISO = today.toISOString();
+  
+  const todayResult = database.exec(
+    'SELECT status, COUNT(*) as count FROM executions WHERE startTime >= ? GROUP BY status',
+    [todayISO]
+  );
+  
+  let successfulToday = 0;
+  let failedToday = 0;
+  
+  if (todayResult.length > 0) {
+    todayResult[0].values.forEach(row => {
+      const status = row[0] as string;
+      const count = row[1] as number;
+      if (status === 'success') successfulToday = count;
+      if (status === 'failed') failedToday = count;
+    });
+  }
+  
+  return {
+    totalJobs,
+    activeJobs,
+    successfulToday,
+    failedToday,
+    successRate: successfulToday + failedToday > 0 
+      ? ((successfulToday / (successfulToday + failedToday)) * 100).toFixed(1)
+      : '0'
+  };
+}
+
+export async function getExecutionTrends(days: number = 7) {
+  const database = await initDatabase();
+  
+  const trends: Array<{ date: string; successful: number; failed: number }> = [];
+  
+  for (let i = days - 1; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    date.setHours(0, 0, 0, 0);
+    const startISO = date.toISOString();
+    
+    const endDate = new Date(date);
+    endDate.setDate(endDate.getDate() + 1);
+    const endISO = endDate.toISOString();
+    
+    const result = database.exec(
+      'SELECT status, COUNT(*) as count FROM executions WHERE startTime >= ? AND startTime < ? GROUP BY status',
+      [startISO, endISO]
+    );
+    
+    let successful = 0;
+    let failed = 0;
+    
+    if (result.length > 0) {
+      result[0].values.forEach(row => {
+        const status = row[0] as string;
+        const count = row[1] as number;
+        if (status === 'success') successful = count;
+        if (status === 'failed') failed = count;
+      });
+    }
+    
+    trends.push({
+      date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      successful,
+      failed
+    });
+  }
+  
+  return trends;
+}
+
+export async function getExecutionDistribution() {
+  const database = await initDatabase();
+  
+  const result = database.exec(
+    'SELECT status, COUNT(*) as count FROM executions GROUP BY status'
+  );
+  
+  const distribution = [
+    { name: 'Success', value: 0, color: 'hsl(var(--success))' },
+    { name: 'Failed', value: 0, color: 'hsl(var(--destructive))' },
+    { name: 'Running', value: 0, color: 'hsl(var(--primary))' },
+  ];
+  
+  if (result.length > 0) {
+    result[0].values.forEach(row => {
+      const status = row[0] as string;
+      const count = row[1] as number;
+      
+      if (status === 'success') distribution[0].value = count;
+      if (status === 'failed') distribution[1].value = count;
+      if (status === 'running') distribution[2].value = count;
+    });
+  }
+  
+  return distribution;
+}
