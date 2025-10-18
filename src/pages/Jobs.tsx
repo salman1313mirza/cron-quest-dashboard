@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,19 +28,31 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, Play, Pause, Trash2, Settings as SettingsIcon, Zap } from "lucide-react";
-import { mockJobs, Job } from "@/lib/mockData";
+import { Job } from "@/lib/mockData";
+import { getAllJobs, createJob as createJobDB, updateJob, deleteJob as deleteJobDB, initDatabase } from "@/lib/database";
 import { useNavigate } from "react-router-dom";
 import { JobForm, JobFormData } from "@/components/JobForm";
 import { TriggerJobDialog } from "@/components/TriggerJobDialog";
 import { toast } from "sonner";
 
 const Jobs = () => {
-  const [jobs, setJobs] = useState(mockJobs);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
   const [triggerJob, setTriggerJob] = useState<Job | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    async function loadJobs() {
+      await initDatabase();
+      const loadedJobs = await getAllJobs();
+      setJobs(loadedJobs as Job[]);
+      setLoading(false);
+    }
+    loadJobs();
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -57,9 +69,9 @@ const Jobs = () => {
     }
   };
 
-  const handleCreateJob = (jobData: JobFormData) => {
+  const handleCreateJob = async (jobData: JobFormData) => {
     const newJob: Job = {
-      id: String(jobs.length + 1),
+      id: `job_${Date.now()}`,
       name: jobData.name,
       url: jobData.url,
       method: jobData.method,
@@ -74,28 +86,28 @@ const Jobs = () => {
       timeout: jobData.timeout,
     };
     
-    setJobs([...jobs, newJob]);
+    await createJobDB(newJob);
+    const updatedJobs = await getAllJobs();
+    setJobs(updatedJobs as Job[]);
     setIsCreateDialogOpen(false);
     toast.success(`Job "${jobData.name}" created successfully!`);
   };
 
-  const handleToggleJob = (jobId: string, currentStatus: string) => {
-    setJobs(jobs.map(job => {
-      if (job.id === jobId) {
-        const newStatus = currentStatus === "paused" ? "success" : "paused";
-        toast.success(`Job ${newStatus === "paused" ? "paused" : "resumed"}`);
-        return {
-          ...job,
-          status: newStatus as Job["status"],
-          nextRun: newStatus === "paused" ? "-" : new Date(Date.now() + 3600000).toISOString()
-        };
-      }
-      return job;
-    }));
+  const handleToggleJob = async (jobId: string, currentStatus: string) => {
+    const newStatus = currentStatus === "paused" ? "success" : "paused";
+    await updateJob(jobId, {
+      status: newStatus,
+      nextRun: newStatus === "paused" ? "-" : new Date(Date.now() + 3600000).toISOString()
+    });
+    const updatedJobs = await getAllJobs();
+    setJobs(updatedJobs as Job[]);
+    toast.success(`Job ${newStatus === "paused" ? "paused" : "resumed"}`);
   };
 
-  const handleDeleteJob = (jobId: string) => {
-    setJobs(jobs.filter(job => job.id !== jobId));
+  const handleDeleteJob = async (jobId: string) => {
+    await deleteJobDB(jobId);
+    const updatedJobs = await getAllJobs();
+    setJobs(updatedJobs as Job[]);
     setDeletingJobId(null);
     toast.success("Job deleted successfully");
   };
@@ -103,6 +115,10 @@ const Jobs = () => {
   const handleTriggerJob = (job: Job) => {
     setTriggerJob(job);
   };
+
+  if (loading) {
+    return <div className="p-8">Loading jobs from database...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -253,6 +269,7 @@ const Jobs = () => {
           onOpenChange={(open) => !open && setTriggerJob(null)}
           jobName={triggerJob.name}
           jobUrl={triggerJob.url}
+          jobId={triggerJob.id}
           method={triggerJob.method}
           headers={triggerJob.headers}
           body={triggerJob.body}

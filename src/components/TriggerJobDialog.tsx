@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createExecution } from "@/lib/database";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,7 @@ interface TriggerJobDialogProps {
   onOpenChange: (open: boolean) => void;
   jobName: string;
   jobUrl: string;
+  jobId?: string;
   method?: string;
   headers?: string;
   body?: string;
@@ -27,6 +29,7 @@ export function TriggerJobDialog({
   onOpenChange, 
   jobName, 
   jobUrl,
+  jobId,
   method = "GET",
   headers = "",
   body = "",
@@ -42,6 +45,9 @@ export function TriggerJobDialog({
     setProgress(10);
     setResult(null);
     setMessage("");
+
+    const startTime = Date.now();
+    const executionId = `exec_${Date.now()}`;
 
     try {
       // Progress simulation
@@ -91,6 +97,25 @@ export function TriggerJobDialog({
       clearInterval(progressInterval);
       setProgress(100);
 
+      const endTime = Date.now();
+      const duration = Math.round((endTime - startTime) / 1000);
+      const responseBody = await response.text();
+
+      // Save execution to database if jobId is provided
+      if (jobId) {
+        await createExecution({
+          id: executionId,
+          jobId: jobId,
+          startTime: new Date(startTime).toISOString(),
+          endTime: new Date(endTime).toISOString(),
+          status: response.ok ? "success" : "failed",
+          duration,
+          logs: response.ok ? `Success: ${response.status}` : `Failed: ${response.status} ${response.statusText}`,
+          responseStatus: response.status,
+          responseBody: responseBody.substring(0, 5000),
+        });
+      }
+
       if (response.ok) {
         setResult("success");
         setMessage(`Job executed successfully! Status: ${response.status}`);
@@ -101,6 +126,24 @@ export function TriggerJobDialog({
         toast.error(`Failed with status ${response.status}`);
       }
     } catch (error) {
+      const endTime = Date.now();
+      const duration = Math.round((endTime - startTime) / 1000);
+      
+      // Save failed execution
+      if (jobId) {
+        await createExecution({
+          id: executionId,
+          jobId: jobId,
+          startTime: new Date(startTime).toISOString(),
+          endTime: new Date(endTime).toISOString(),
+          status: "failed",
+          duration,
+          logs: error instanceof Error ? `Error: ${error.message}` : "Failed to execute job",
+          responseStatus: null,
+          responseBody: null,
+        });
+      }
+      
       setResult("error");
       if (error instanceof Error) {
         if (error.name === 'AbortError') {

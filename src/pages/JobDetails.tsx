@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Play, Pause, Edit, Trash2, Zap } from "lucide-react";
-import { mockJobs, mockExecutions } from "@/lib/mockData";
+import { getJobById, getExecutionsByJobId, updateJob, deleteJob } from "@/lib/database";
 import { useNavigate } from "react-router-dom";
 import { TriggerJobDialog } from "@/components/TriggerJobDialog";
 import { toast } from "sonner";
@@ -14,11 +14,28 @@ const JobDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [triggerDialogOpen, setTriggerDialogOpen] = useState(false);
-  const job = mockJobs.find((j) => j.id === id);
-  const executions = mockExecutions.filter((e) => e.jobId === id);
+  const [job, setJob] = useState<any>(null);
+  const [executions, setExecutions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      if (!id) return;
+      const loadedJob = await getJobById(id);
+      const loadedExecutions = await getExecutionsByJobId(id);
+      setJob(loadedJob);
+      setExecutions(loadedExecutions);
+      setLoading(false);
+    }
+    loadData();
+  }, [id]);
+
+  if (loading) {
+    return <div className="p-8">Loading job details...</div>;
+  }
 
   if (!job) {
-    return <div>Job not found</div>;
+    return <div className="p-8">Job not found</div>;
   }
 
   const getStatusColor = (status: string) => {
@@ -36,11 +53,19 @@ const JobDetails = () => {
     }
   };
 
-  const handleToggle = () => {
-    toast.success(job.status === "paused" ? "Job resumed" : "Job paused");
+  const handleToggle = async () => {
+    const newStatus = job.status === "paused" ? "success" : "paused";
+    await updateJob(job.id, {
+      status: newStatus,
+      nextRun: newStatus === "paused" ? "-" : new Date(Date.now() + 3600000).toISOString()
+    });
+    const updatedJob = await getJobById(job.id);
+    setJob(updatedJob);
+    toast.success(newStatus === "paused" ? "Job paused" : "Job resumed");
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
+    await deleteJob(job.id);
     toast.success("Job deleted");
     navigate("/jobs");
   };
@@ -152,6 +177,7 @@ const JobDetails = () => {
         onOpenChange={setTriggerDialogOpen}
         jobName={job.name}
         jobUrl={job.url}
+        jobId={job.id}
         method={job.method}
         headers={job.headers}
         body={job.body}
