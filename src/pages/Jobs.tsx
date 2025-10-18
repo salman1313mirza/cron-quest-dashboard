@@ -43,16 +43,38 @@ const Jobs = () => {
   const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
   const [triggerJob, setTriggerJob] = useState<Job | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [lastUpdated, setLastUpdated] = useState(new Date());
   const navigate = useNavigate();
 
+  // Load jobs from database
+  const loadJobs = async () => {
+    await initDatabase();
+    const loadedJobs = await getAllJobs();
+    setJobs(loadedJobs as Job[]);
+    setLastUpdated(new Date());
+    if (loading) setLoading(false);
+  };
+
+  // Initial load
   useEffect(() => {
-    async function loadJobs() {
-      await initDatabase();
-      const loadedJobs = await getAllJobs();
-      setJobs(loadedJobs as Job[]);
-      setLoading(false);
-    }
     loadJobs();
+  }, []);
+
+  // Real-time updates - refresh every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadJobs();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Real-time clock - update every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const getStatusColor = (status: string) => {
@@ -130,6 +152,17 @@ const Jobs = () => {
         <div>
           <h1 className="text-3xl font-bold">Jobs</h1>
           <p className="text-muted-foreground">Manage and monitor your cron jobs</p>
+          <div className="flex items-center gap-4 mt-2 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
+              <span className="text-muted-foreground">
+                Live: {currentTime.toLocaleTimeString()}
+              </span>
+            </div>
+            <span className="text-muted-foreground">
+              Last updated: {lastUpdated.toLocaleTimeString()}
+            </span>
+          </div>
         </div>
         <Button className="gap-2" onClick={() => setIsCreateDialogOpen(true)}>
           <Plus className="h-4 w-4" />
