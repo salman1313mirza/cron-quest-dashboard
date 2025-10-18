@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { createExecution } from "@/lib/database";
+import { createExecution, updateJob, getJobById } from "@/lib/database";
+import { calculateNextRun } from "@/lib/cronUtils";
 import {
   Dialog,
   DialogContent,
@@ -103,17 +104,28 @@ export function TriggerJobDialog({
 
       // Save execution to database if jobId is provided
       if (jobId) {
+        const executionEndTime = new Date(endTime);
         await createExecution({
           id: executionId,
           jobId: jobId,
           startTime: new Date(startTime).toISOString(),
-          endTime: new Date(endTime).toISOString(),
+          endTime: executionEndTime.toISOString(),
           status: response.ok ? "success" : "failed",
           duration,
           logs: response.ok ? `Success: ${response.status}` : `Failed: ${response.status} ${response.statusText}`,
           responseStatus: response.status,
           responseBody: responseBody.substring(0, 5000),
         });
+        
+        // Update job's lastRun and nextRun times
+        const job = await getJobById(jobId);
+        if (job && job.status !== "paused") {
+          const nextRunTime = calculateNextRun(job.schedule, executionEndTime);
+          await updateJob(jobId, {
+            lastRun: executionEndTime.toISOString(),
+            nextRun: nextRunTime.toISOString(),
+          });
+        }
       }
 
       if (response.ok) {
@@ -131,17 +143,28 @@ export function TriggerJobDialog({
       
       // Save failed execution
       if (jobId) {
+        const executionEndTime = new Date(endTime);
         await createExecution({
           id: executionId,
           jobId: jobId,
           startTime: new Date(startTime).toISOString(),
-          endTime: new Date(endTime).toISOString(),
+          endTime: executionEndTime.toISOString(),
           status: "failed",
           duration,
           logs: error instanceof Error ? `Error: ${error.message}` : "Failed to execute job",
           responseStatus: null,
           responseBody: null,
         });
+        
+        // Update job's lastRun and nextRun times even on failure
+        const job = await getJobById(jobId);
+        if (job && job.status !== "paused") {
+          const nextRunTime = calculateNextRun(job.schedule, executionEndTime);
+          await updateJob(jobId, {
+            lastRun: executionEndTime.toISOString(),
+            nextRun: nextRunTime.toISOString(),
+          });
+        }
       }
       
       setResult("error");

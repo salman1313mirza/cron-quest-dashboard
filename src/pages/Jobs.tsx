@@ -30,6 +30,7 @@ import {
 import { Plus, Play, Pause, Trash2, Settings as SettingsIcon, Zap } from "lucide-react";
 import { Job } from "@/lib/mockData";
 import { getAllJobs, createJob as createJobDB, updateJob, deleteJob as deleteJobDB, initDatabase } from "@/lib/database";
+import { calculateNextRun } from "@/lib/cronUtils";
 import { useNavigate } from "react-router-dom";
 import { JobForm, JobFormData } from "@/components/JobForm";
 import { TriggerJobDialog } from "@/components/TriggerJobDialog";
@@ -70,6 +71,7 @@ const Jobs = () => {
   };
 
   const handleCreateJob = async (jobData: JobFormData) => {
+    const now = new Date();
     const newJob: Job = {
       id: `job_${Date.now()}`,
       name: jobData.name,
@@ -77,8 +79,8 @@ const Jobs = () => {
       method: jobData.method,
       schedule: jobData.schedule,
       status: jobData.enabled ? "success" : "paused",
-      lastRun: new Date().toISOString(),
-      nextRun: jobData.enabled ? new Date(Date.now() + 3600000).toISOString() : "-",
+      lastRun: now.toISOString(),
+      nextRun: jobData.enabled ? calculateNextRun(jobData.schedule, now).toISOString() : "-",
       successRate: 100,
       executionCount: 0,
       headers: jobData.headers,
@@ -95,9 +97,11 @@ const Jobs = () => {
 
   const handleToggleJob = async (jobId: string, currentStatus: string) => {
     const newStatus = currentStatus === "paused" ? "success" : "paused";
+    const job = jobs.find(j => j.id === jobId);
+    
     await updateJob(jobId, {
       status: newStatus,
-      nextRun: newStatus === "paused" ? "-" : new Date(Date.now() + 3600000).toISOString()
+      nextRun: newStatus === "paused" ? "-" : calculateNextRun(job?.schedule || "0 * * * *").toISOString()
     });
     const updatedJobs = await getAllJobs();
     setJobs(updatedJobs as Job[]);

@@ -1,15 +1,33 @@
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { mockJobs } from "@/lib/mockData";
 import { JobForm, JobFormData } from "@/components/JobForm";
+import { getJobById, updateJob } from "@/lib/database";
+import { calculateNextRun } from "@/lib/cronUtils";
 import { toast } from "sonner";
 
 const JobEdit = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const job = mockJobs.find((j) => j.id === id);
+  const [job, setJob] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadJob() {
+      if (id) {
+        const loadedJob = await getJobById(id);
+        setJob(loadedJob);
+        setLoading(false);
+      }
+    }
+    loadJob();
+  }, [id]);
+
+  if (loading) {
+    return <div className="p-8">Loading job...</div>;
+  }
 
   if (!job) {
     return (
@@ -26,25 +44,37 @@ const JobEdit = () => {
     );
   }
 
-  const handleSubmit = (jobData: JobFormData) => {
-    // In a real app, this would update the job in the database
-    console.log("Updating job:", jobData);
+  const handleSubmit = async (jobData: JobFormData) => {
+    const updates = {
+      name: jobData.name,
+      url: jobData.url,
+      method: jobData.method,
+      schedule: jobData.schedule,
+      headers: jobData.headers || null,
+      body: jobData.body || null,
+      timeout: jobData.timeout,
+      status: jobData.enabled ? "success" : "paused",
+      enabled: jobData.enabled ? 1 : 0,
+      nextRun: jobData.enabled ? calculateNextRun(jobData.schedule).toISOString() : "-",
+    };
+    
+    await updateJob(id!, updates);
     toast.success("Job updated successfully!");
     navigate(`/jobs/${id}`);
   };
 
   const initialData: Partial<JobFormData> = {
     name: job.name,
-    url: "https://example.com/your-php-script.php",
-    method: "GET",
+    url: job.url,
+    method: job.method,
     schedule: job.schedule,
     autoStart: job.status !== "paused",
     autoStop: false,
     autoStopAfter: 3600,
-    timeout: 300,
+    timeout: job.timeout || 300,
     maxRetries: 3,
-    headers: "",
-    body: "",
+    headers: job.headers || "",
+    body: job.body || "",
     enabled: job.status !== "paused",
   };
 
