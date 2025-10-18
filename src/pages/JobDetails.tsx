@@ -151,7 +151,11 @@ const JobDetails = () => {
         open={triggerDialogOpen}
         onOpenChange={setTriggerDialogOpen}
         jobName={job.name}
-        jobUrl="https://example.com/your-php-script.php"
+        jobUrl={job.url}
+        method={job.method}
+        headers={job.headers}
+        body={job.body}
+        timeout={job.timeout}
       />
     </div>
   );

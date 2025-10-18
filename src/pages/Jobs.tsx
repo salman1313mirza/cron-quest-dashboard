@@ -39,7 +39,7 @@ const Jobs = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
-  const [triggerJob, setTriggerJob] = useState<{ name: string; url: string } | null>(null);
+  const [triggerJob, setTriggerJob] = useState<Job | null>(null);
   const navigate = useNavigate();
 
   const getStatusColor = (status: string) => {
@@ -61,12 +61,17 @@ const Jobs = () => {
     const newJob: Job = {
       id: String(jobs.length + 1),
       name: jobData.name,
+      url: jobData.url,
+      method: jobData.method,
       schedule: jobData.schedule,
       status: jobData.enabled ? "success" : "paused",
       lastRun: new Date().toISOString(),
       nextRun: jobData.enabled ? new Date(Date.now() + 3600000).toISOString() : "-",
       successRate: 100,
       executionCount: 0,
+      headers: jobData.headers,
+      body: jobData.body,
+      timeout: jobData.timeout,
     };
     
     setJobs([...jobs, newJob]);
@@ -96,10 +101,7 @@ const Jobs = () => {
   };
 
   const handleTriggerJob = (job: Job) => {
-    setTriggerJob({
-      name: job.name,
-      url: "https://example.com/job-endpoint.php" // In real app, this would be stored with the job
-    });
+    setTriggerJob(job);
   };
 
   return (
@@ -251,6 +253,10 @@ const Jobs = () => {
           onOpenChange={(open) => !open && setTriggerJob(null)}
           jobName={triggerJob.name}
           jobUrl={triggerJob.url}
+          method={triggerJob.method}
+          headers={triggerJob.headers}
+          body={triggerJob.body}
+          timeout={triggerJob.timeout}
         />
       )}
     </div>

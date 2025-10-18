@@ -16,9 +16,22 @@ interface TriggerJobDialogProps {
   onOpenChange: (open: boolean) => void;
   jobName: string;
   jobUrl: string;
+  method?: string;
+  headers?: string;
+  body?: string;
+  timeout?: number;
 }
 
-export function TriggerJobDialog({ open, onOpenChange, jobName, jobUrl }: TriggerJobDialogProps) {
+export function TriggerJobDialog({ 
+  open, 
+  onOpenChange, 
+  jobName, 
+  jobUrl,
+  method = "GET",
+  headers = "",
+  body = "",
+  timeout = 300
+}: TriggerJobDialogProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<"success" | "error" | null>(null);
@@ -31,29 +44,76 @@ export function TriggerJobDialog({ open, onOpenChange, jobName, jobUrl }: Trigge
     setMessage("");
 
     try {
-      // Simulate progress
+      // Progress simulation
       const progressInterval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
+        setProgress((prev) => Math.min(prev + 15, 90));
       }, 200);
 
-      // Mock API call - in real implementation, this would call your job URL
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      
+      // Parse headers
+      let parsedHeaders: Record<string, string> = {};
+      if (headers.trim()) {
+        try {
+          parsedHeaders = JSON.parse(headers);
+        } catch {
+          toast.error("Invalid JSON in headers");
+          throw new Error("Invalid headers JSON");
+        }
+      }
+
+      // Parse body
+      let parsedBody: string | undefined;
+      if (body.trim() && method !== "GET") {
+        try {
+          JSON.parse(body); // Validate JSON
+          parsedBody = body;
+        } catch {
+          toast.error("Invalid JSON in body");
+          throw new Error("Invalid body JSON");
+        }
+      }
+
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout * 1000);
+
+      // Make real HTTP request
+      const response = await fetch(jobUrl, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...parsedHeaders,
+        },
+        body: parsedBody,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
       clearInterval(progressInterval);
       setProgress(100);
-      setResult("success");
-      setMessage("Job executed successfully!");
-      toast.success("Job triggered successfully!");
+
+      if (response.ok) {
+        setResult("success");
+        setMessage(`Job executed successfully! Status: ${response.status}`);
+        toast.success("Job triggered successfully!");
+      } else {
+        setResult("error");
+        setMessage(`Job failed with status ${response.status}: ${response.statusText}`);
+        toast.error(`Failed with status ${response.status}`);
+      }
     } catch (error) {
       setResult("error");
-      setMessage("Failed to execute job");
-      toast.error("Failed to trigger job");
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          setMessage(`Job timed out after ${timeout} seconds`);
+          toast.error("Job execution timed out");
+        } else {
+          setMessage(`Error: ${error.message}`);
+          toast.error("Failed to trigger job");
+        }
+      } else {
+        setMessage("Failed to execute job");
+        toast.error("Failed to trigger job");
+      }
     } finally {
       setIsRunning(false);
     }
