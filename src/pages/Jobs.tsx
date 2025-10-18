@@ -3,6 +3,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -10,12 +27,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Play, Pause, Trash2, Settings } from "lucide-react";
-import { mockJobs } from "@/lib/mockData";
+import { Plus, Play, Pause, Trash2, Settings as SettingsIcon, Zap } from "lucide-react";
+import { mockJobs, Job } from "@/lib/mockData";
 import { useNavigate } from "react-router-dom";
+import { JobForm, JobFormData } from "@/components/JobForm";
+import { TriggerJobDialog } from "@/components/TriggerJobDialog";
+import { toast } from "sonner";
 
 const Jobs = () => {
-  const [jobs] = useState(mockJobs);
+  const [jobs, setJobs] = useState(mockJobs);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
+  const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
+  const [triggerJob, setTriggerJob] = useState<{ name: string; url: string } | null>(null);
   const navigate = useNavigate();
 
   const getStatusColor = (status: string) => {
@@ -33,6 +57,51 @@ const Jobs = () => {
     }
   };
 
+  const handleCreateJob = (jobData: JobFormData) => {
+    const newJob: Job = {
+      id: String(jobs.length + 1),
+      name: jobData.name,
+      schedule: jobData.schedule,
+      status: jobData.enabled ? "success" : "paused",
+      lastRun: new Date().toISOString(),
+      nextRun: jobData.enabled ? new Date(Date.now() + 3600000).toISOString() : "-",
+      successRate: 100,
+      executionCount: 0,
+    };
+    
+    setJobs([...jobs, newJob]);
+    setIsCreateDialogOpen(false);
+    toast.success(`Job "${jobData.name}" created successfully!`);
+  };
+
+  const handleToggleJob = (jobId: string, currentStatus: string) => {
+    setJobs(jobs.map(job => {
+      if (job.id === jobId) {
+        const newStatus = currentStatus === "paused" ? "success" : "paused";
+        toast.success(`Job ${newStatus === "paused" ? "paused" : "resumed"}`);
+        return {
+          ...job,
+          status: newStatus as Job["status"],
+          nextRun: newStatus === "paused" ? "-" : new Date(Date.now() + 3600000).toISOString()
+        };
+      }
+      return job;
+    }));
+  };
+
+  const handleDeleteJob = (jobId: string) => {
+    setJobs(jobs.filter(job => job.id !== jobId));
+    setDeletingJobId(null);
+    toast.success("Job deleted successfully");
+  };
+
+  const handleTriggerJob = (job: Job) => {
+    setTriggerJob({
+      name: job.name,
+      url: "https://example.com/job-endpoint.php" // In real app, this would be stored with the job
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -40,7 +109,7 @@ const Jobs = () => {
           <h1 className="text-3xl font-bold">Jobs</h1>
           <p className="text-muted-foreground">Manage and monitor your cron jobs</p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => setIsCreateDialogOpen(true)}>
           <Plus className="h-4 w-4" />
           New Job
         </Button>
@@ -83,17 +152,29 @@ const Jobs = () => {
                     {job.nextRun !== "-" ? new Date(job.nextRun).toLocaleString() : "-"}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Handle play/pause
+                          handleTriggerJob(job);
                         }}
+                        title="Trigger now"
+                      >
+                        <Zap className="h-4 w-4 text-primary" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleJob(job.id, job.status);
+                        }}
+                        title={job.status === "paused" ? "Resume" : "Pause"}
                       >
                         {job.status === "paused" ? (
-                          <Play className="h-4 w-4" />
+                          <Play className="h-4 w-4 text-success" />
                         ) : (
                           <Pause className="h-4 w-4" />
                         )}
@@ -103,20 +184,22 @@ const Jobs = () => {
                         size="icon"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Handle settings
+                          navigate(`/jobs/${job.id}/edit`);
                         }}
+                        title="Settings"
                       >
-                        <Settings className="h-4 w-4" />
+                        <SettingsIcon className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Handle delete
+                          setDeletingJobId(job.id);
                         }}
+                        title="Delete"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
                   </TableCell>
@@ -126,6 +209,50 @@ const Jobs = () => {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Job</DialogTitle>
+            <DialogDescription>
+              Configure a new cron job to execute your PHP program or HTTP endpoint
+            </DialogDescription>
+          </DialogHeader>
+          <JobForm
+            onSubmit={handleCreateJob}
+            onCancel={() => setIsCreateDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deletingJobId} onOpenChange={() => setDeletingJobId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Job</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this job? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingJobId && handleDeleteJob(deletingJobId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {triggerJob && (
+        <TriggerJobDialog
+          open={!!triggerJob}
+          onOpenChange={(open) => !open && setTriggerJob(null)}
+          jobName={triggerJob.name}
+          jobUrl={triggerJob.url}
+        />
+      )}
     </div>
   );
 };
