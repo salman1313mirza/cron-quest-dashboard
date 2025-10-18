@@ -171,97 +171,130 @@ const Jobs = () => {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>All Jobs</CardTitle>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
+            <span>Real-time</span>
+          </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Schedule</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Success Rate</TableHead>
-                <TableHead>Last Run</TableHead>
-                <TableHead>Next Run</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {jobs.map((job) => (
-                <TableRow
-                  key={job.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => navigate(`/jobs/${job.id}`)}
-                >
-                  <TableCell className="font-medium">{job.name}</TableCell>
-                  <TableCell className="font-mono text-sm">{job.schedule}</TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(job.status)}>{job.status}</Badge>
-                  </TableCell>
-                  <TableCell>{job.successRate}%</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {new Date(job.lastRun).toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {job.nextRun !== "-" ? new Date(job.nextRun).toLocaleString() : "-"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTriggerJob(job);
-                        }}
-                        title="Trigger now"
-                      >
-                        <Zap className="h-4 w-4 text-primary" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleJob(job.id, job.status);
-                        }}
-                        title={job.status === "paused" ? "Resume" : "Pause"}
-                      >
-                        {job.status === "paused" ? (
-                          <Play className="h-4 w-4 text-success" />
-                        ) : (
-                          <Pause className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/jobs/${job.id}/edit`);
-                        }}
-                        title="Settings"
-                      >
-                        <SettingsIcon className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeletingJobId(job.id);
-                        }}
-                        title="Delete"
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {jobs.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>No jobs yet. Create your first cron job to get started.</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Schedule</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Success Rate</TableHead>
+                  <TableHead>Last Run</TableHead>
+                  <TableHead>Next Run</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {jobs.map((job) => {
+                  const lastRunDate = job.lastRun ? new Date(job.lastRun) : null;
+                  const nextRunDate = job.nextRun && job.nextRun !== "-" ? new Date(job.nextRun) : null;
+                  const isPastNextRun = nextRunDate && currentTime >= nextRunDate;
+                  
+                  return (
+                    <TableRow
+                      key={job.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigate(`/jobs/${job.id}`)}
+                    >
+                      <TableCell className="font-medium">{job.name}</TableCell>
+                      <TableCell className="font-mono text-sm">{job.schedule}</TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(job.status)}>{job.status}</Badge>
+                      </TableCell>
+                      <TableCell>{Math.round(job.successRate || 0)}%</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {lastRunDate ? (
+                          <div>
+                            <div>{lastRunDate.toLocaleDateString()}</div>
+                            <div className="text-xs">{lastRunDate.toLocaleTimeString()}</div>
+                          </div>
+                        ) : (
+                          <span>Never</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {nextRunDate ? (
+                          <div className={isPastNextRun ? "text-warning" : "text-muted-foreground"}>
+                            <div>{nextRunDate.toLocaleDateString()}</div>
+                            <div className="text-xs">{nextRunDate.toLocaleTimeString()}</div>
+                            {isPastNextRun && (
+                              <div className="text-xs text-warning">Should have run</div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTriggerJob(job);
+                            }}
+                            title="Trigger now"
+                          >
+                            <Zap className="h-4 w-4 text-primary" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleJob(job.id, job.status);
+                            }}
+                            title={job.status === "paused" ? "Resume" : "Pause"}
+                          >
+                            {job.status === "paused" ? (
+                              <Play className="h-4 w-4 text-success" />
+                            ) : (
+                              <Pause className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/jobs/${job.id}/edit`);
+                            }}
+                            title="Settings"
+                          >
+                            <SettingsIcon className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeletingJobId(job.id);
+                            }}
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
