@@ -10,6 +10,7 @@ import Jobs from "./pages/Jobs";
 import JobDetails from "./pages/JobDetails";
 import JobEdit from "./pages/JobEdit";
 import Analytics from "./pages/Analytics";
+import ErrorLogs from "./pages/ErrorLogs";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -36,6 +37,7 @@ const App = () => (
                   <Route path="/jobs/:id" element={<JobDetails />} />
                   <Route path="/jobs/:id/edit" element={<JobEdit />} />
                   <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/error-logs" element={<ErrorLogs />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>

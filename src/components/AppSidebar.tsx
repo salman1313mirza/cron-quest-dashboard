@@ -1,4 +1,4 @@
-import { LayoutDashboard, Clock, Settings, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Clock, Settings, BarChart3, AlertCircle } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -16,6 +16,7 @@ const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Jobs", url: "/jobs", icon: Clock },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
+  { title: "Error Logs", url: "/error-logs", icon: AlertCircle },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 

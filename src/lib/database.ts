@@ -53,6 +53,20 @@ export async function initDatabase() {
       );
     `);
 
+    db.run(`
+      CREATE TABLE IF NOT EXISTS error_logs (
+        id TEXT PRIMARY KEY,
+        jobId TEXT NOT NULL,
+        jobName TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        errorType TEXT NOT NULL,
+        errorMessage TEXT NOT NULL,
+        stackTrace TEXT,
+        responseStatus INTEGER,
+        FOREIGN KEY (jobId) REFERENCES jobs(id) ON DELETE CASCADE
+      );
+    `);
+
     saveDatabase();
   }
 
@@ -351,4 +365,70 @@ export async function getExecutionDistribution() {
   }
   
   return distribution;
+}
+
+export async function createErrorLog(errorLog: any) {
+  const database = await initDatabase();
+  database.run(
+    `INSERT INTO error_logs (id, jobId, jobName, timestamp, errorType, errorMessage, stackTrace, responseStatus)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      errorLog.id,
+      errorLog.jobId,
+      errorLog.jobName,
+      errorLog.timestamp,
+      errorLog.errorType,
+      errorLog.errorMessage,
+      errorLog.stackTrace || null,
+      errorLog.responseStatus || null,
+    ]
+  );
+  saveDatabase();
+}
+
+export async function getAllErrorLogs() {
+  const database = await initDatabase();
+  const result = database.exec(
+    'SELECT * FROM error_logs ORDER BY timestamp DESC LIMIT 1000'
+  );
+  
+  if (result.length === 0) return [];
+  
+  return result[0].values.map(row => ({
+    id: row[0] as string,
+    jobId: row[1] as string,
+    jobName: row[2] as string,
+    timestamp: row[3] as string,
+    errorType: row[4] as string,
+    errorMessage: row[5] as string,
+    stackTrace: row[6] as string,
+    responseStatus: row[7] as number,
+  }));
+}
+
+export async function getErrorLogsByJobId(jobId: string) {
+  const database = await initDatabase();
+  const result = database.exec(
+    'SELECT * FROM error_logs WHERE jobId = ? ORDER BY timestamp DESC',
+    [jobId]
+  );
+  
+  if (result.length === 0) return [];
+  
+  return result[0].values.map(row => ({
+    id: row[0] as string,
+    jobId: row[1] as string,
+    jobName: row[2] as string,
+    timestamp: row[3] as string,
+    errorType: row[4] as string,
+    errorMessage: row[5] as string,
+    stackTrace: row[6] as string,
+    responseStatus: row[7] as number,
+  }));
+}
+
+export async function deleteErrorLog(id: string) {
+  const database = await initDatabase();
+  database.run('DELETE FROM error_logs WHERE id = ?', [id]);
+  saveDatabase();
 }

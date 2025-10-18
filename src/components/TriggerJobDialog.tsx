@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { createExecution, updateJob, getJobById } from "@/lib/database";
+import { createExecution, updateJob, getJobById, createErrorLog } from "@/lib/database";
 import { calculateNextRun } from "@/lib/cronUtils";
 import {
   Dialog,
@@ -141,6 +141,9 @@ export function TriggerJobDialog({
       const endTime = Date.now();
       const duration = Math.round((endTime - startTime) / 1000);
       
+      const errorMessage = error instanceof Error ? error.message : "Failed to execute job";
+      const errorType = error instanceof Error ? error.name : "Error";
+      
       // Save failed execution
       if (jobId) {
         const executionEndTime = new Date(endTime);
@@ -151,13 +154,25 @@ export function TriggerJobDialog({
           endTime: executionEndTime.toISOString(),
           status: "failed",
           duration,
-          logs: error instanceof Error ? `Error: ${error.message}` : "Failed to execute job",
+          logs: `Error: ${errorMessage}`,
           responseStatus: null,
           responseBody: null,
         });
         
-        // Update job's lastRun and nextRun times even on failure
+        // Log error to error_logs table
         const job = await getJobById(jobId);
+        await createErrorLog({
+          id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          jobId: jobId,
+          jobName: job?.name || jobName,
+          timestamp: executionEndTime.toISOString(),
+          errorType: errorType,
+          errorMessage: errorMessage,
+          stackTrace: error instanceof Error ? error.stack : null,
+          responseStatus: null,
+        });
+        
+        // Update job's lastRun and nextRun times even on failure
         if (job && job.status !== "paused") {
           const nextRunTime = calculateNextRun(job.schedule, executionEndTime);
           await updateJob(jobId, {
