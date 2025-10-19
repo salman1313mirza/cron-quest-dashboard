@@ -131,18 +131,26 @@ class JobScheduler {
     try {
       const jobs = await getAllJobs();
       const now = new Date();
+      
+      console.log(`[Scheduler] Checking ${jobs.length} jobs at ${now.toLocaleTimeString()}`);
 
       for (const job of jobs) {
         // Skip paused jobs
-        if (job.status === 'paused') continue;
+        if (job.status === 'paused') {
+          console.log(`[Scheduler] Skipping paused job: ${job.name}`);
+          continue;
+        }
 
         // Check if job should run
         if (job.nextRun && job.nextRun !== '-') {
           const nextRunDate = new Date(job.nextRun);
           
+          console.log(`[Scheduler] Job "${job.name}": Next run ${nextRunDate.toLocaleString()}, Current ${now.toLocaleString()}`);
+          
           // If current time is past or equal to next run time
           if (now >= nextRunDate) {
-            // Execute job in background
+            console.log(`[Scheduler] Executing job: ${job.name}`);
+            // Execute job (don't await to allow multiple jobs to run in parallel)
             this.executeJob(job).catch(err => {
               console.error(`Error executing job ${job.name}:`, err);
             });
@@ -157,14 +165,17 @@ class JobScheduler {
   }
 
   start() {
-    if (this.intervalId !== null) return;
+    if (this.intervalId !== null) {
+      console.log('[Scheduler] Already running');
+      return;
+    }
 
-    console.log('Job scheduler started');
+    console.log('[Scheduler] Starting job scheduler');
     
-    // Check every 30 seconds
+    // Check every 10 seconds for more frequent updates
     this.intervalId = window.setInterval(() => {
       this.checkAndExecuteJobs();
-    }, 30000);
+    }, 10000);
 
     // Also check immediately
     this.checkAndExecuteJobs();
