@@ -35,6 +35,7 @@ import { useNavigate } from "react-router-dom";
 import { JobForm, JobFormData } from "@/components/JobForm";
 import { TriggerJobDialog } from "@/components/TriggerJobDialog";
 import { toast } from "sonner";
+import { jobScheduler } from "@/lib/jobScheduler";
 
 const Jobs = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -56,9 +57,14 @@ const Jobs = () => {
     if (loading) setLoading(false);
   };
 
-  // Initial load
+  // Initial load and start scheduler
   useEffect(() => {
     loadJobs();
+    jobScheduler.start();
+    
+    return () => {
+      jobScheduler.stop();
+    };
   }, []);
 
   // Real-time updates - refresh every 5 seconds
