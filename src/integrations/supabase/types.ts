@@ -14,7 +14,133 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      error_logs: {
+        Row: {
+          error_details: string | null
+          error_message: string
+          id: string
+          job_id: string
+          job_name: string
+          timestamp: string
+        }
+        Insert: {
+          error_details?: string | null
+          error_message: string
+          id?: string
+          job_id: string
+          job_name: string
+          timestamp?: string
+        }
+        Update: {
+          error_details?: string | null
+          error_message?: string
+          id?: string
+          job_id?: string
+          job_name?: string
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "error_logs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      executions: {
+        Row: {
+          error_message: string | null
+          executed_at: string
+          id: string
+          job_id: string
+          response_code: number | null
+          response_time: number | null
+          status: string
+        }
+        Insert: {
+          error_message?: string | null
+          executed_at?: string
+          id?: string
+          job_id: string
+          response_code?: number | null
+          response_time?: number | null
+          status: string
+        }
+        Update: {
+          error_message?: string | null
+          executed_at?: string
+          id?: string
+          job_id?: string
+          response_code?: number | null
+          response_time?: number | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "executions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          body: string | null
+          created_at: string
+          failure_count: number
+          headers: string | null
+          id: string
+          last_run: string | null
+          method: string
+          name: string
+          next_run: string | null
+          schedule: string
+          status: string
+          success_count: number
+          timeout: number
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          failure_count?: number
+          headers?: string | null
+          id?: string
+          last_run?: string | null
+          method?: string
+          name: string
+          next_run?: string | null
+          schedule: string
+          status?: string
+          success_count?: number
+          timeout?: number
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          failure_count?: number
+          headers?: string | null
+          id?: string
+          last_run?: string | null
+          method?: string
+          name?: string
+          next_run?: string | null
+          schedule?: string
+          status?: string
+          success_count?: number
+          timeout?: number
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
