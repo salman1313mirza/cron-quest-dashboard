@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/table";
 import { Plus, Play, Pause, Trash2, Settings as SettingsIcon, Zap } from "lucide-react";
 import { Job } from "@/lib/mockData";
-import { getAllJobs, createJob as createJobDB, updateJob, deleteJob as deleteJobDB, initDatabase } from "@/lib/database";
+import { getAllJobs, createJob as createJobDB, updateJob, deleteJob as deleteJobDB } from "@/lib/database";
 import { calculateNextRun } from "@/lib/cronUtils";
 import { useNavigate } from "react-router-dom";
 import { JobForm, JobFormData } from "@/components/JobForm";
@@ -49,7 +49,6 @@ const Jobs = () => {
 
   // Load jobs from database
   const loadJobs = async () => {
-    await initDatabase();
     const loadedJobs = await getAllJobs();
     setJobs(loadedJobs as Job[]);
     setLastUpdated(new Date());

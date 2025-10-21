@@ -3,7 +3,7 @@ import { MetricCard } from "@/components/MetricCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Activity, CheckCircle2, XCircle, Clock } from "lucide-react";
-import { getDashboardStats, getExecutionTrends, getAllJobs, initDatabase } from "@/lib/database";
+import { getDashboardStats, getExecutionTrends, getAllJobs } from "@/lib/database";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 const Dashboard = () => {
@@ -19,7 +19,6 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   const loadDashboardData = async () => {
-    await initDatabase();
     const statsData = await getDashboardStats();
     const trendsData = await getExecutionTrends(7);
     const jobs = await getAllJobs();

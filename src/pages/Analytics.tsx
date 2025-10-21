@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getExecutionTrends, getExecutionDistribution, initDatabase } from "@/lib/database";
+import { getExecutionTrends, getExecutionDistribution } from "@/lib/database";
 import {
   BarChart,
   Bar,
@@ -23,7 +23,6 @@ const Analytics = () => {
   const [loading, setLoading] = useState(true);
 
   const loadAnalyticsData = async () => {
-    await initDatabase();
     const trendsData = await getExecutionTrends(7);
     const distributionData = await getExecutionDistribution();
     
